@@ -42,7 +42,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
   void _navigateToHabit() {
     Navigator.pushNamed(context, '/habit');
   }
@@ -58,39 +57,31 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            RepaintBoundary( // Isolate UI that doesn't change frequently
-              child: ElevatedButton(
-                onPressed: _navigateToHabit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF874AB7),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30.0)),
-                  padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 20),
-                ),
-                child: const Text(
-                  "Record Habit",
-                  style: TextStyle(
-                      color: Colors.white, fontSize: 18, fontFamily: 'Cursive'),
-                ),
+            ElevatedButton(
+              onPressed: _navigateToHabit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF874AB7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
+                padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 20),
+              ),
+              child: const Text(
+                "Record Habit",
+                style: TextStyle(color: Colors.white, fontSize: 18, fontFamily: 'Cursive'),
               ),
             ),
             const SizedBox(height: 80),
-            RepaintBoundary(
-              child: ElevatedButton(
-                onPressed: _navigateToReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF874AB7),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30.0)),
-                  padding: const EdgeInsets.symmetric(horizontal: 74, vertical: 20),
-                ),
-                child: const Text(
-                  "View Report",
-                  style: TextStyle(
-                      color: Colors.white, fontSize: 18, fontFamily: 'Cursive'),
-                ),
+            ElevatedButton(
+              onPressed: _navigateToReport,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF874AB7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
+                padding: const EdgeInsets.symmetric(horizontal: 74, vertical: 20)
               ),
-            ),
+              child: const Text(
+                'View Report',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontFamily: 'Cursive'),
+              ),
+            )
           ],
         ),
       ),
@@ -137,17 +128,34 @@ class RecordHabit extends StatefulWidget {
 class _RecordHabitState extends State<RecordHabit> {
   final TextEditingController _controller = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  late Future<List<HabitList>> _habitsFuture;
+  List<HabitList> _habitList = [];
+  Map<int, bool> _selectedHabits = {};
 
   @override
   void initState() {
     super.initState();
-    _habitsFuture = _fetchHabits();
+    _fetchHabits();
+  }
+
+  void _fetchHabits(){
+    setState(() {
+      _habitList = widget.habitListBox.getAll();
+      _habitList.forEach((habit) {
+        _selectedHabits[habit.id] = false;
+      });
+    });
+  }
+
+  void _toggleCheckbox(int id) {
+    setState(() {
+      _selectedHabits[id] = !_selectedHabits[id]!;
+    });
   }
 
   void _addHabitToList(String habit) {
     final habitListEntry = HabitList(habit: habit);
     widget.habitListBox.put(habitListEntry);
+    _fetchHabits();
   }
 
   @override
@@ -177,43 +185,37 @@ class _RecordHabitState extends State<RecordHabit> {
             ),
           ),
           Expanded(
-            child: RepaintBoundary(
-              child: Consumer<HabitProvider>(
-                builder: (context, habitProvider, child) {
-                  return ListView.builder(
-                    itemCount: habitProvider.habits.length,
-                    itemBuilder: (context, index) {
-                      final habit = habitProvider.habits[index];
-                      return ListTile(
-                        title: Text(habit.title),
-                        trailing: Checkbox(
-                          value: habit.isSelected,
-                          onChanged: (bool? value) {
-                            habitProvider.toggleHabitCheckbox(index);
-                          },
-                        ),
-                      );
+            child: ListView.builder(
+              itemCount: _habitList.length,
+              itemBuilder: (context, index) {
+                final habit = _habitList[index];
+                return ListTile(
+                  title: Text(habit.habit),
+                  trailing: Checkbox(
+                    value: _selectedHabits[habit.id],
+                    onChanged: (bool? value) {
+                      _toggleCheckbox(habit.id);
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+                );
+              },
+            )
           ),
           ElevatedButton(
             onPressed: _saveSelectedHabits,
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF874AB7),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30.0)
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 20)
+              backgroundColor: const Color(0xFF874AB7),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30.0)
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 20)
             ),
             child: const Text(
               'Submit',
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontFamily: 'Cursive'
+                color: Colors.white,
+                fontSize: 25,
+                fontFamily: 'Cursive'
               ),
             ),
           ),
@@ -224,17 +226,11 @@ class _RecordHabitState extends State<RecordHabit> {
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                        labelText: 'Add a new activity'
+                      labelText: 'Add a new activity'
                     ),
                     controller: _controller,
                     onSubmitted: (abc) {
-                      widget.habitListBox.put(HabitList(habit: _controller.text));
-                      setState(() {
-                        _habitsFuture = _fetchHabits();
-                      });
-                      _controller.clear();
                       if (abc.isNotEmpty) {
-                        context.read<HabitProvider>().addHabit(abc);
                         _addHabitToList(abc);
                         _controller.clear();
                       }
@@ -245,7 +241,6 @@ class _RecordHabitState extends State<RecordHabit> {
                   icon: const Icon(Icons.add),
                   onPressed: () {
                     if (_controller.text.isNotEmpty) {
-                      context.read<HabitProvider>().addHabit(_controller.text);
                       _addHabitToList(_controller.text);
                       _controller.clear();
                     }
@@ -306,21 +301,15 @@ class _RecordHabitState extends State<RecordHabit> {
     );
   }
 
-  void _saveSelectedHabits() async {
-    final habitProvider = context.read<HabitProvider>();
-    final selectedHabits = habitProvider.habits.where((habit) => habit.isSelected);
-
+  void _saveSelectedHabits() {
+    final selectedHabits = _habitList.where((habit) => _selectedHabits[habit.id] == true);
     for (var habit in selectedHabits) {
-      final habitDB = HabitDB(habit: habit.title, date: _selectedDate);
+      final habitDB = HabitDB(habit: habit.habit, date: _selectedDate);
       widget.habitBox.put(habitDB);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Selected habits saved successfully!')),
     );
-  }
-
-  Future<List<HabitList>> _fetchHabits() async {
-    return widget.habitListBox.getAll(); // Retrieve all users
   }
 }
 
