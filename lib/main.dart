@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'HabitDB.dart';
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
       home: MyHomePage(),
       routes: {
         '/habit': (context) => RecordHabit(habitBox: habitBox, habitListBox: habitListBox),
-        '/report': (context) => ViewReport(),
+        '/report': (context) => ViewReport(habitListBox: habitListBox,),
       },
     );
   }
@@ -314,6 +315,10 @@ class _RecordHabitState extends State<RecordHabit> {
 }
 
 class ViewReport extends StatefulWidget {
+  final Box<HabitList> habitListBox;
+
+  ViewReport({required this.habitListBox});
+
   @override
   _ViewReportState createState() => _ViewReportState();
 }
@@ -321,43 +326,94 @@ class ViewReport extends StatefulWidget {
 class _ViewReportState extends State<ViewReport> {
   late DateTime _selectedDate;
   final Map<DateTime, Color> _dateColors = {};
+  late HabitList _selectedHabit;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
+    final habitList = widget.habitListBox.getAll();
+    _selectedHabit = habitList.isNotEmpty ? habitList.first : HabitList(habit: 'No Habit');
   }
 
-  void _updateDateColor(DateTime date, Color color) {
+  void _changeHabit(bool isNext){
+    final habitList = widget.habitListBox.getAll();
+    if (habitList.isEmpty) return;
+
+    final currentIndex = habitList.indexOf(_selectedHabit);
+    final nextIndex = (currentIndex + (isNext ? 1 : -1)) % habitList.length;
     setState(() {
-      _dateColors[date] = color;
+      _selectedHabit = habitList[nextIndex < 0 ? habitList.length -1 : nextIndex];
+    });
+  }
+
+  void _changeMonth(bool isNext) {
+    setState(() {
+      _selectedDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month + (isNext ? 1 : -1)
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Habit Report"),
+      ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(
-              DateFormat('MMMM yyyy').format(_selectedDate),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_left),
+                  onPressed: () => _changeHabit(false),
+                ),
+                Text(
+                  _selectedHabit.habit,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_right),
+                  onPressed: () => _changeHabit(true),
+                )
+              ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_left),
+                  onPressed: () => _changeMonth(false),
+                ),
+                Text(
+                  DateFormat('MMMM yyyy').format(_selectedDate),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_right),
+                  onPressed: () => _changeMonth(true),
+                )
+              ],
+            )
+          ),
           Expanded(child: _buildCalendar()),
-          _buildIconGrid(),
+
         ],
       ),
     );
   }
 
   Widget _buildCalendar() {
-    final firstDayOfMonth =
-    DateTime(_selectedDate.year, _selectedDate.month, 1);
-    final lastDayOfMonth =
-    DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
+    final firstDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    final lastDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
     final dayInMonth = lastDayOfMonth.day;
 
     return GridView.builder(
@@ -395,41 +451,6 @@ class _ViewReportState extends State<ViewReport> {
     );
   }
 
-  Widget _buildIconGrid() {
-    final List<Color> colors = [Colors.red, Colors.green, Colors.yellow, Colors.blue, Colors.orange];
 
-    return SizedBox(
-      height: 100,
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            childAspectRatio: 1.0
-        ),
-        itemCount: colors.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () {
-              if (_dateColors.containsKey(_selectedDate)){
-                _updateDateColor(_selectedDate, colors[index]);
-              }
-            },
-            child: Container(
-              margin: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                  color: colors[index],
-                  shape: BoxShape.circle
-              ),
-              child: Center(
-                child: Text(
-                  'Icon ${index+1}',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
